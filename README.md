@@ -96,15 +96,29 @@ After this step, CKAN should be running at `CKAN_SITE_URL` (by default https://l
 
 Use this mode if you are making code changes to CKAN and either creating new extensions or making code changes to existing extensions. This mode also uses the `.env` file for config options.
 
-To develop local extensions use the `docker-compose.dev.yml` file:
+To develop local extensions use the `docker-compose.dev.yml` file with help from the scripts under `bin`:
+
+dev script | description
+--- | ---
+`bin/ckan …` | exec `ckan` cli within the ckan-dev container
+`bin/compose …` | dev docker compose commands
+`bin/generate_extension` | generate extension in `src` directory
+`bin/install_src` | install all extensions from `src` directory (ckan-dev does not need to be running)
+`bin/reload` | reload ckan within the ckan-dev container without restarting
+`bin/restart` | shut down and restart the whole ckan-dev container (use `bin/compose up -d` instead to reload new values from .env)
+`bin/shell` | exec bash prompt within the ckan-dev container
 
 To build the images:
 
-	docker compose -f docker-compose.dev.yml build
+	bin/compose build
+
+To install extensions from the `src` directory:
+
+	bin/install_src
 
 To start the containers:
 
-	docker compose -f docker-compose.dev.yml up
+	bin/compose up
 
 See [CKAN images](#5-ckan-images) for more details of what happens when using development mode.
 
@@ -113,9 +127,7 @@ See [CKAN images](#5-ckan-images) for more details of what happens when using de
 
 You can use the ckan [extension](https://docs.ckan.org/en/latest/extensions/tutorial.html#creating-a-new-extension) instructions to create a CKAN extension, only executing the command inside the CKAN container and setting the mounted `src/` folder as output:
 
-```bash
-docker compose -f docker-compose.dev.yml exec ckan-dev ckan generate extension --output-dir /srv/app/src_extensions
-```
+        bin/generate_extension
 
 ```
 Extension's name [must begin 'ckanext-']: ckanext-mytheme
@@ -131,11 +143,6 @@ Written: /srv/app/src_extensions/ckanext-mytheme
 
 The new extension files and directories are created in the `/srv/app/src_extensions/` folder in the running container. They will also exist in the local src/ directory as local `/src` directory is mounted as `/srv/app/src_extensions/` on the ckan container.
 
-The files will be owned by root, to correct the ownership so you can edit the files with your normal account outside the container run:
-
-```bash
-docker compose -f docker-compose.dev.yml exec ckan-dev chown --reference /srv/app/src_extensions/ -R /srv/app/src_extensions/ckanext-mytheme/
-```
 
 #### Running HTTPS on development mode
 
@@ -164,6 +171,10 @@ development instance in your `.env` file:
   USE_DEBUGPY_FOR_DEV=true
 ```
 
+Next run the install script to install debugpy:
+
+	bin/install_src
+
 Then start the containers in [development mode](#development-mode) and launch VS Code.
 
 In VS Code:
@@ -171,8 +182,9 @@ In VS Code:
 1. Install the "Dev Container" extension: press CTRL+SHIFT+X, type "dev container", click "install"
 2. Click the "Open a Remote Window" button in the bottom-left of the VS Code window
 3. Click "Attach to Running Container..." and select your ckan-dev container, e.g. "ckan-docker-ckan-dev-1"
-4. Click the "Run and Debug" icon on the left panel then "create a launch.json", select "Python Debugger", "Remote Attach", host "localhost" and port "5678"
-5. Press F5 or click the "Run" menu and "Start Debugging"
+4. Click the "Run and Debug" icon on the left panel and choose to install the "Python Debugger"
+5. Click "create a launch.json", select "Python Debugger", "Remote Attach", host "localhost" and port "5678"
+6. Press F5 or click the "Run" menu and "Start Debugging"
 
 You can now set breakpoints and remote debug your CKAN development instance.
 
@@ -321,19 +333,18 @@ For convenience the CKAN_SITE_URL parameter should be set in the .env file. For 
 
 1. Create a new user from the Docker host, for example to create a new user called 'admin'
 
-   `docker exec -it <container-id> ckan -c ckan.ini user add admin email=admin@localhost`
+   `docker compose exec ckan ckan user add admin email=admin@localhost`
+
+   To set this user as a sysadmin run
+
+   `docker compose exec ckan ckan sysadmin add admin`
 
    To delete the 'admin' user
 
-   `docker exec -it <container-id> ckan -c ckan.ini user remove admin`
+   `docker compose exec ckan ckan user remove admin`
 
-2. Create a new user from within the ckan container. You will need to get a session on the running container
+   In development mode use `bin/ckan` instead of `docker compose exec ckan ckan` for the above commands.
 
-   `ckan -c ckan.ini user add admin email=admin@localhost`
-
-   To delete the 'admin' user
-
-   `ckan -c ckan.ini user remove admin`
 
 ## 12. Changing the base image
 
